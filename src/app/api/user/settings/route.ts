@@ -1,0 +1,54 @@
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { users } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
+import { z } from "zod";
+
+export async function GET() {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const [user] = await db
+    .select({
+      name:            users.name,
+      email:           users.email,
+      whatsappNumber:  users.whatsappNumber,
+    })
+    .from(users)
+    .where(eq(users.id, session.user.id))
+    .limit(1);
+
+  if (!user) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  return NextResponse.json(user);
+}
+
+const PatchSchema = z.object({
+  name:           z.string().min(1).max(100).optional(),
+  whatsappNumber: z.string().max(20).nullable().optional(),
+});
+
+export async function PATCH(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  let body: z.infer<typeof PatchSchema>;
+  try {
+    body = PatchSchema.parse(await req.json());
+  } catch (err) {
+    return NextResponse.json({ error: "Invalid payload", detail: String(err) }, { status: 400 });
+  }
+
+  const updates: Record<string, unknown> = { updatedAt: new Date() };
+  if (body.name           !== undefined) updates.name           = body.name;
+  if (body.whatsappNumber !== undefined) updates.whatsappNumber = body.whatsappNumber;
+
+  await db.update(users).set(updates).where(eq(users.id, session.user.id));
+
+  return NextResponse.json({ ok: true });
+}

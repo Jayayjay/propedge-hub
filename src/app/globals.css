@@ -1,26 +1,181 @@
 @import "tailwindcss";
 
+/* ─── Light mode tokens ───────────────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg:           #f8f9fa;
+  --bg-subtle:    #f0f1f3;
+  --surface:      #ffffff;
+  --surface-2:    #f4f5f7;
+  --border:       rgba(0, 0, 0, 0.08);
+  --border-2:     rgba(0, 0, 0, 0.05);
+  --text:         #111111;
+  --text-muted:   #666666;
+  --text-faint:   #aaaaaa;
+  --accent:       #22C55E;
+  --accent-dim:   rgba(34, 197, 94, 0.12);
+  --danger:       #EF4444;
+  --warning:      #F59E0B;
+  --scrollbar:    rgba(0,0,0,0.12);
+  --heading-gradient: linear-gradient(135deg, #111111 0%, #444444 100%);
+  color-scheme: light;
+}
+
+/* ─── Dark mode tokens ────────────────────────────────────────────── */
+.dark {
+  --bg:           #0a0a0a;
+  --bg-subtle:    #0d0d0d;
+  --surface:      #111111;
+  --surface-2:    #1f1f1f;
+  --border:       rgba(255, 255, 255, 0.06);
+  --border-2:     rgba(255, 255, 255, 0.04);
+  --text:         #f1f1f1;
+  --text-muted:   #888888;
+  --text-faint:   #555555;
+  --accent:       #22C55E;
+  --accent-dim:   rgba(34, 197, 94, 0.10);
+  --danger:       #EF4444;
+  --warning:      #F59E0B;
+  --scrollbar:    rgba(255,255,255,0.10);
+  --heading-gradient: linear-gradient(135deg, #ffffff 0%, #aaaaaa 100%);
+  color-scheme: dark;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+* { box-sizing: border-box; }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-inter, system-ui, sans-serif);
+  transition: background 0.25s ease, color 0.25s ease;
+}
+
+/* ─── Scrollbar ──────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar); filter: brightness(1.4); }
+
+::selection { background: rgba(34, 197, 94, 0.25); }
+
+/* ─── 3D Animation Keyframes ─────────────────────────────────────── */
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px) translateZ(0); }
+  50%       { transform: translateY(-18px) translateZ(12px); }
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  33%       { transform: translateY(-12px) rotate(3deg); }
+  66%       { transform: translateY(-6px) rotate(-2deg); }
+}
+
+@keyframes float-orb {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25%       { transform: translate(30px, -20px) scale(1.05); }
+  50%       { transform: translate(-20px, -35px) scale(0.95); }
+  75%       { transform: translate(15px, -10px) scale(1.02); }
+}
+
+@keyframes float-orb-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25%       { transform: translate(-25px, 20px) scale(1.03); }
+  50%       { transform: translate(30px, 40px) scale(0.97); }
+  75%       { transform: translate(-10px, 15px) scale(1.01); }
+}
+
+@keyframes card-float {
+  0%, 100% { transform: perspective(1000px) rotateX(8deg) rotateY(-4deg) translateY(0px); }
+  50%       { transform: perspective(1000px) rotateX(6deg) rotateY(-2deg) translateY(-12px); }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slide-right {
+  from { opacity: 0; transform: translateX(-20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes pulse-ring {
+  0%    { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34,197,94,0.4); }
+  70%   { transform: scale(1);    box-shadow: 0 0 0 12px rgba(34,197,94,0); }
+  100%  { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes counter-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(-360deg); }
+}
+
+/* ─── Animation utility classes ─────────────────────────────────── */
+
+.animate-float        { animation: float 4s ease-in-out infinite; }
+.animate-float-slow   { animation: float-slow 6s ease-in-out infinite; }
+.animate-card-float   { animation: card-float 5s ease-in-out infinite; }
+.animate-fade-up      { animation: fade-up 0.6s ease forwards; }
+.animate-fade-in      { animation: fade-in 0.5s ease forwards; }
+.animate-orb          { animation: float-orb 8s ease-in-out infinite; }
+.animate-orb-2        { animation: float-orb-2 11s ease-in-out infinite; }
+.animate-spin-slow    { animation: spin-slow 20s linear infinite; }
+.animate-counter-spin { animation: counter-spin 15s linear infinite; }
+.animate-pulse-ring   { animation: pulse-ring 2.5s ease-in-out infinite; }
+
+/* Stagger helpers */
+.delay-100 { animation-delay: 0.1s; }
+.delay-200 { animation-delay: 0.2s; }
+.delay-300 { animation-delay: 0.3s; }
+.delay-400 { animation-delay: 0.4s; }
+.delay-500 { animation-delay: 0.5s; }
+.delay-600 { animation-delay: 0.6s; }
+.delay-700 { animation-delay: 0.7s; }
+.delay-800 { animation-delay: 0.8s; }
+
+/* Start hidden for fade-in animations */
+.anim-hidden { opacity: 0; }
+
+/* ─── 3D card tilt ───────────────────────────────────────────────── */
+.tilt-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+.tilt-card:hover {
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3), 0 0 0 1px rgba(34,197,94,0.1);
+}
+
+/* ─── Shimmer gradient on glass cards ───────────────────────────── */
+.glass-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.glass-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.04) 50%, transparent 60%);
+  background-size: 200% 100%;
+  animation: shimmer 3s infinite;
+  pointer-events: none;
 }
