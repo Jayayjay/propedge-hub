@@ -1,8 +1,11 @@
+"use client";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { mockTrades } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
-import { ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { ExportPdfButton } from "@/components/prop-tracker/export-pdf-button";
 
 const stats = [
   { label: "Total Trades", value: "47" },
@@ -11,14 +14,30 @@ const stats = [
   { label: "Best Trade", value: "+$312" },
 ];
 
+const pdfStats = { total: "47", winRate: "62%", netPnl: "+$1,284", bestTrade: "+$312" };
+
 export default function HistoryPage() {
   const totalProfit = mockTrades.reduce((sum, t) => sum + t.profit, 0);
 
+  const pdfTrades = mockTrades.map((t) => ({
+    symbol: t.symbol,
+    type: t.type,
+    lots: t.lots,
+    openPrice: t.openPrice,
+    closePrice: t.closePrice,
+    pips: t.pips,
+    profit: t.profit,
+    closeTime: t.closeTime,
+  }));
+
   return (
     <div className="max-w-5xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-xl font-bold text-[#F1F1F1]">Trade History</h1>
-        <p className="text-sm text-[#555] mt-0.5">Full trade log across all challenges</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-[#F1F1F1]">Trade History</h1>
+          <p className="text-sm text-[#555] mt-0.5">Full trade log across all challenges</p>
+        </div>
+        <ExportPdfButton trades={pdfTrades} stats={pdfStats} />
       </div>
 
       {/* Stats row */}

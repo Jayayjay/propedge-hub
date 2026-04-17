@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { propFirmLogos, type PropFirm } from "@/lib/prop-firms";
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
@@ -21,16 +22,16 @@ const features = [
   { icon: Zap,       title: "PDF Performance Reports",    desc: "Export professional reports showing your equity curve, win rate, and rule compliance.",                                    mono: "#ccc" },
 ];
 
-// Prop firm data with logo mark, challenge type, and max account
-const firms = [
-  { id: "ftuk",    name: "FTUK",            mark: "FT",   type: "2-Step Challenge",  max: "$200K",  pattern: "dots"   },
-  { id: "fp",      name: "FunderPro",        mark: "FP",   type: "2-Step Challenge",  max: "$200K",  pattern: "lines"  },
-  { id: "nova",    name: "Nova Funded",      mark: "N★",   type: "1-Step Challenge",  max: "$100K",  pattern: "grid"   },
-  { id: "e8",      name: "E8 Markets",       mark: "E8",   type: "3-Step Challenge",  max: "$300K",  pattern: "dots"   },
-  { id: "mff",     name: "My Forex Funds",   mark: "MFF",  type: "2-Step Challenge",  max: "$200K",  pattern: "lines"  },
-  { id: "fxify",   name: "FXIFY",            mark: "FX",   type: "1-Step Challenge",  max: "$100K",  pattern: "grid"   },
-  { id: "fundpips",name: "Funding Pips",     mark: "FP",   type: "2-Step Challenge",  max: "$200K",  pattern: "dots"   },
-  { id: "5ers",    name: "The5%ers",         mark: "5%",   type: "Hyper Growth",      max: "$4M",    pattern: "lines"  },
+// Prop firm data — logoKey maps to propFirmLogos for Clearbit logo
+const firms: Array<{ logoKey: PropFirm; mark: string; type: string; max: string; pattern: string }> = [
+  { logoKey: "ftuk",         mark: "FT",  type: "2-Step Challenge", max: "$200K", pattern: "dots"  },
+  { logoKey: "funderpro",    mark: "FP",  type: "2-Step Challenge", max: "$200K", pattern: "lines" },
+  { logoKey: "novafunded",   mark: "N★",  type: "1-Step Challenge", max: "$100K", pattern: "grid"  },
+  { logoKey: "e8markets",    mark: "E8",  type: "3-Step Challenge", max: "$300K", pattern: "dots"  },
+  { logoKey: "myforexfunds", mark: "MFF", type: "2-Step Challenge", max: "$200K", pattern: "lines" },
+  { logoKey: "fxify",        mark: "FX",  type: "1-Step Challenge", max: "$100K", pattern: "grid"  },
+  { logoKey: "fundingpips",  mark: "FP",  type: "2-Step Challenge", max: "$200K", pattern: "dots"  },
+  { logoKey: "the5ers",      mark: "5%",  type: "Hyper Growth",     max: "$4M",   pattern: "lines" },
 ];
 
 const stats = [
@@ -63,8 +64,12 @@ const patterns: Record<string, string> = {
 };
 
 // ─── Prop Firm Logo Card ───────────────────────────────────────────────────────
+type ImgStage = "clearbit" | "google" | "mark";
+
 function FirmCard({ firm, delay }: { firm: typeof firms[0]; delay: number }) {
   const ref = useRef<HTMLDivElement>(null);
+  const [stage, setStage] = useState<ImgStage>("clearbit");
+  const info = propFirmLogos[firm.logoKey];
 
   const onMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const el = ref.current;
@@ -90,32 +95,43 @@ function FirmCard({ firm, delay }: { firm: typeof firms[0]; delay: number }) {
         transition: "transform 0.15s ease, box-shadow 0.15s ease",
       }}
     >
-      {/* Logo mark area */}
+      {/* Logo area */}
       <div
         className="relative flex items-center justify-center h-20"
         style={{
-          background: "#111",
-          backgroundImage: patterns[firm.pattern],
+          background: stage === "mark" ? "#111" : "#fff",
+          backgroundImage: stage === "mark" ? patterns[firm.pattern] : "none",
         }}
       >
-        {/* Mark */}
-        <span
-          className="text-2xl font-black tracking-tight select-none"
-          style={{ color: "#fff", fontVariantNumeric: "tabular-nums" }}
-        >
-          {firm.mark}
-        </span>
-        {/* Corner accent line */}
-        <div
-          className="absolute top-0 left-0 right-0 h-[2px] transition-opacity duration-300"
-          style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)", opacity: 0 }}
-        />
+        {stage === "mark" ? (
+          <span
+            className="text-2xl font-black tracking-tight select-none"
+            style={{ color: "#fff", fontVariantNumeric: "tabular-nums" }}
+          >
+            {firm.mark}
+          </span>
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={stage}
+            src={stage === "clearbit" ? info.logo : info.fallback}
+            alt={info.name}
+            width={80}
+            height={80}
+            className="object-contain p-3"
+            onLoad={(e) => {
+              // Clearbit returns a blank 1px image when it has no logo
+              if (e.currentTarget.naturalWidth <= 1) setStage("google");
+            }}
+            onError={() => setStage(stage === "clearbit" ? "google" : "mark")}
+          />
+        )}
       </div>
 
       {/* Info */}
       <div className="px-4 py-3">
         <p className="text-sm font-bold leading-tight" style={{ color: "var(--text)" }}>
-          {firm.name}
+          {info.name}
         </p>
         <div className="flex items-center justify-between mt-1.5">
           <p className="text-[10px]" style={{ color: "var(--text-faint)" }}>{firm.type}</p>
@@ -472,7 +488,7 @@ export default function LandingPage() {
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {firms.map((firm, i) => (
-              <FirmCard key={firm.id} firm={firm} delay={i * 55} />
+              <FirmCard key={firm.logoKey} firm={firm} delay={i * 55} />
             ))}
           </div>
 

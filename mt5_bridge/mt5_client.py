@@ -1,10 +1,22 @@
 """
 MT5 client with automatic mock fallback.
 
-MetaTrader5 Python package only runs on Windows with an MT5 terminal installed.
-On Linux/Mac (dev machines, CI, Docker), MockMT5 generates realistic demo data
-so the rest of the pipeline can be developed and tested end-to-end.
+─── Wine / Linux users ────────────────────────────────────────────────────────
+The MetaTrader5 Python package requires a native Windows Python + terminal.
+On Linux with MT5 running under Wine you have two options:
+
+  Option A — MQL5 Expert Advisor (recommended, no Python needed):
+    Copy PropEdgeHub_Bridge.mq5 into <MT5 data>/MQL5/Experts/, compile,
+    attach to a chart, and set InpNextJsUrl / InpBridgeSecret inputs.
+    The EA pushes data directly to /api/mt5/push — this bridge is not needed.
+
+  Option B — Wine Python (advanced):
+    Install Python for Windows inside Wine, install MetaTrader5 there,
+    then run:  wine python.exe main.py
+    Set FORCE_REAL_MT5=1 in .env to bypass the platform check.
+───────────────────────────────────────────────────────────────────────────────
 """
+import os
 import platform
 import random
 import time
@@ -260,11 +272,18 @@ class MockMT5:
 # ── Factory ────────────────────────────────────────────────────────────────────
 
 def make_client(login: int) -> "RealMT5 | MockMT5":
-    """Return a real MT5 client on Windows, mock on other platforms."""
-    if platform.system() == "Windows":
+    """Return a real MT5 client on Windows (or when FORCE_REAL_MT5=1), mock otherwise."""
+    force_real = os.getenv("FORCE_REAL_MT5", "").strip() in ("1", "true", "yes")
+    is_windows = platform.system() == "Windows"
+
+    if is_windows or force_real:
         try:
             return RealMT5()
         except ImportError:
             logger.warning("MetaTrader5 package not installed — falling back to mock")
-    logger.info("[MOCK] Non-Windows platform — using MockMT5 for account %d", login)
+
+    if force_real:
+        logger.warning("FORCE_REAL_MT5=1 but MetaTrader5 unavailable; using mock")
+    else:
+        logger.info("[MOCK] Non-Windows — using MockMT5 for account %d", login)
     return MockMT5(login=login)

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Target, History, Bell, Settings,
-  TrendingUp, ChevronRight, LogOut, X,
+  TrendingUp, ChevronRight, LogOut, X, BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -88,13 +88,25 @@ export function Sidebar() {
         <p className="text-[10px] font-semibold uppercase tracking-widest px-3 pt-4 pb-1" style={{ color: "var(--text-faint)" }}>
           Tools
         </p>
-        <div className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm" style={{ color: "var(--text-faint)" }}>
-          <TrendingUp className="h-4 w-4 shrink-0" />
-          <span className="flex-1">Trade Journal</span>
-          <span className="text-[9px] px-1.5 py-0.5 rounded uppercase tracking-wider" style={{ background: "var(--surface-2)", color: "var(--text-faint)" }}>
-            Soon
-          </span>
-        </div>
+        {[{ href: "/dashboard/journal", label: "Trade Journal", icon: BookOpen }].map(({ href, label, icon: Icon }) => {
+          const isActive = pathname === href || pathname.startsWith(href);
+          return (
+            <Link
+              key={href}
+              href={href}
+              onClick={close}
+              className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all group",
+                isActive ? "bg-[#22C55E]/10 text-[#22C55E]" : "hover:bg-black/5 dark:hover:bg-white/5"
+              )}
+              style={!isActive ? { color: "var(--text-muted)" } : {}}
+            >
+              <Icon className={cn("h-4 w-4 shrink-0", isActive ? "text-[#22C55E]" : "")} />
+              <span className="flex-1">{label}</span>
+              {isActive && <ChevronRight className="h-3 w-3 opacity-60" />}
+            </Link>
+          );
+        })}
       </nav>
 
       {/* Footer */}

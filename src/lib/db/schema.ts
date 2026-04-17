@@ -168,6 +168,29 @@ export const alerts = pgTable("alerts", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// ─── Journal Entries ──────────────────────────────────────────────────────────
+
+export const journalEntries = pgTable("journal_entries", {
+  id: serial("id").primaryKey(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  challengeId: integer("challenge_id").references(() => propChallenges.id),
+  tradeTicket: text("trade_ticket"),
+  date: timestamp("date").notNull().defaultNow(),
+  symbol: text("symbol"),
+  direction: text("direction").default("none"), // buy | sell | none
+  setup: text("setup"),
+  notes: text("notes"),
+  outcome: text("outcome"),
+  pnl: decimal("pnl", { precision: 10, scale: 2 }),
+  mood: text("mood"), // confident | neutral | anxious | greedy | fearful
+  tags: text("tags").array(),
+  isWin: boolean("is_win"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // ─── Relations ────────────────────────────────────────────────────────────────
 
 export const usersRelations = relations(users, ({ many, one }) => ({
@@ -180,6 +203,7 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   mt5Accounts: many(mt5Accounts),
   challenges: many(propChallenges),
   alerts: many(alerts),
+  journalEntries: many(journalEntries),
 }));
 
 export const propChallengesRelations = relations(propChallenges, ({ one, many }) => ({

@@ -1,7 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --no-turbopack)"
+      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --no-turbopack)",
+      "Bash(mkdir -p /home/von/Desktop/Junkyard/propfirmtracker/src/app/api/challenges/\\\\[id\\\\]/live)",
+      "Bash(mkdir -p /home/von/Desktop/Junkyard/propfirmtracker/src/app/api/challenges/\\\\[id\\\\]/equity)",
+      "Bash(mkdir -p /home/von/Desktop/Junkyard/propfirmtracker/src/app/api/challenges/\\\\[id\\\\]/trades)",
+      "Bash(find /home/von/Desktop/Junkyard/propfirmtracker/src -type f \\\\\\( -name \"*.ts\" -o -name \"*.tsx\" \\\\\\) -exec wc -l {} \\\\;)",
+      "Bash(awk '{print $2 \" \\(\" $1 \" lines\\)\"}')",
+      "Bash(npm install *)"
     ]
   }
 }
