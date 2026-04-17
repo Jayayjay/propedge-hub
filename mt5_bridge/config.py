@@ -39,8 +39,10 @@ def parse_accounts() -> list[AccountConfig]:
 
 
 # ── Exported config ────────────────────────────────────────────────────────────
-NEXTJS_URL: str = os.getenv("NEXTJS_URL", "http://localhost:3000").rstrip("/")
-BRIDGE_SECRET: str = os.getenv("BRIDGE_SECRET", "dev-secret")
-POLL_INTERVAL: int = int(os.getenv("POLL_INTERVAL_SECONDS", "5"))
-LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO").upper()
+NEXTJS_URL:    str  = os.getenv("NEXTJS_URL", "http://localhost:3000").rstrip("/")
+BRIDGE_SECRET: str  = os.getenv("BRIDGE_SECRET", "dev-secret")
+POLL_INTERVAL: int  = int(os.getenv("POLL_INTERVAL_SECONDS", "5"))
+LOG_LEVEL:     str  = os.getenv("LOG_LEVEL", "INFO").upper()
+BRIDGE_HOST:   str  = os.getenv("BRIDGE_HOST", "0.0.0.0")
+BRIDGE_PORT:   int  = int(os.getenv("BRIDGE_PORT", "8000"))
 ACCOUNTS: list[AccountConfig] = parse_accounts()
