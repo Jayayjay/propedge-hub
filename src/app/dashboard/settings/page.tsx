@@ -37,10 +37,13 @@ const PLANS = [
   },
 ];
 
-const mt5Accounts = [
-  { id: 1, label: "FTUK Phase 2", server: "MetaQuotes-Demo", accountNo: "***4521", status: "connected" },
-  { id: 2, label: "FunderPro P1", server: "FP-Server-01", accountNo: "***8812", status: "connected" },
-];
+type MT5Account = {
+  id: number;
+  label: string;
+  accountNumber: string;
+  serverName: string;
+  lastSync: string | null;
+};
 
 export default function SettingsPage() {
   const [selectedPlan, setSelectedPlan] = useState("free");
@@ -54,6 +57,15 @@ export default function SettingsPage() {
   const [profileSaving, setProfileSaving]   = useState(false);
   const [profileSaved, setProfileSaved]     = useState(false);
 
+  // MT5 accounts state
+  const [mt5Accounts, setMt5Accounts]         = useState<MT5Account[]>([]);
+  const [mt5Label, setMt5Label]               = useState("");
+  const [mt5AccountNo, setMt5AccountNo]       = useState("");
+  const [mt5Server, setMt5Server]             = useState("");
+  const [mt5Password, setMt5Password]         = useState("");
+  const [mt5Saving, setMt5Saving]             = useState(false);
+  const [mt5Error, setMt5Error]               = useState("");
+
   useEffect(() => {
     fetch("/api/user/settings")
       .then((r) => r.json())
@@ -63,7 +75,45 @@ export default function SettingsPage() {
         if (d.whatsappNumber) setWhatsappNumber(d.whatsappNumber);
       })
       .catch(() => {});
+
+    fetch("/api/mt5/accounts")
+      .then((r) => r.json())
+      .then((d) => Array.isArray(d) && setMt5Accounts(d))
+      .catch(() => {});
   }, []);
+
+  const handleAddMT5 = async () => {
+    setMt5Error("");
+    if (!mt5Label || !mt5AccountNo || !mt5Server || !mt5Password) {
+      setMt5Error("All fields are required.");
+      return;
+    }
+    setMt5Saving(true);
+    try {
+      const res = await fetch("/api/mt5/accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          label: mt5Label,
+          accountNumber: mt5AccountNo,
+          serverName: mt5Server,
+          password: mt5Password,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setMt5Error(data.error ?? "Failed to save."); return; }
+      setMt5Accounts((prev) => [...prev, data]);
+      setMt5Label(""); setMt5AccountNo(""); setMt5Server(""); setMt5Password("");
+      setShowMT5Form(false);
+    } finally {
+      setMt5Saving(false);
+    }
+  };
+
+  const handleDeleteMT5 = async (id: number) => {
+    await fetch(`/api/mt5/accounts/${id}`, { method: "DELETE" });
+    setMt5Accounts((prev) => prev.filter((a) => a.id !== id));
+  };
 
   const handleSaveProfile = async () => {
     setProfileSaving(true);
@@ -276,52 +326,73 @@ export default function SettingsPage() {
           </Button>
         </CardHeader>
         <CardContent className="space-y-3">
+          {mt5Accounts.length === 0 && !showMT5Form && (
+            <p className="text-sm text-[#555] py-2">No accounts connected yet.</p>
+          )}
+
           {mt5Accounts.map((acc) => (
-            <div key={acc.id} className="flex items-center gap-3 p-3 rounded-lg bg-[#2A2A2A]">
-              <div className="h-8 w-8 rounded-lg bg-[#22C55E]/10 flex items-center justify-center">
-                <Plug className="h-3.5 w-3.5 text-[#22C55E]" />
+            <div key={acc.id} className="flex items-center gap-3 p-3 rounded-lg" style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}>
+              <div className="h-8 w-8 rounded-lg bg-white/5 flex items-center justify-center">
+                <Plug className="h-3.5 w-3.5" style={{ color: "var(--text-muted)" }} />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-[#F1F1F1]">{acc.label}</p>
-                <p className="text-xs text-[#555]">{acc.server} · {acc.accountNo}</p>
+                <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{acc.label}</p>
+                <p className="text-xs" style={{ color: "var(--text-faint)" }}>
+                  {acc.serverName} · {acc.accountNumber}
+                  {acc.lastSync && ` · synced ${new Date(acc.lastSync).toLocaleTimeString()}`}
+                </p>
               </div>
-              <Badge variant="default" className="text-[10px]">Connected</Badge>
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-[#555] hover:text-[#EF4444]">
+              {acc.lastSync
+                ? <Badge variant="default" className="text-[10px] bg-white/8 text-white border-0">Connected</Badge>
+                : <Badge variant="secondary" className="text-[10px]">Pending</Badge>
+              }
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 hover:text-[#EF4444]"
+                style={{ color: "var(--text-faint)" }}
+                onClick={() => handleDeleteMT5(acc.id)}
+              >
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
             </div>
           ))}
 
           {showMT5Form && (
-            <div className="mt-4 space-y-3 rounded-xl border border-white/8 p-4">
-              <p className="text-sm font-semibold text-[#F1F1F1]">Connect New MT5 Account</p>
+            <div className="mt-2 space-y-3 rounded-xl p-4" style={{ border: "1px solid var(--border)", background: "var(--surface-2)" }}>
+              <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>Connect New MT5 Account</p>
+
+              {mt5Error && (
+                <p className="text-xs text-[#EF4444]">{mt5Error}</p>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label>Label</Label>
-                  <Input placeholder="e.g. FTUK Phase 1" />
+                  <Input placeholder="e.g. FTUK Phase 1" value={mt5Label} onChange={(e) => setMt5Label(e.target.value)} />
                 </div>
                 <div className="space-y-1">
                   <Label>Account Number</Label>
-                  <Input placeholder="12345678" />
+                  <Input placeholder="12345678" value={mt5AccountNo} onChange={(e) => setMt5AccountNo(e.target.value)} />
                 </div>
                 <div className="space-y-1">
                   <Label>Server</Label>
-                  <Input placeholder="e.g. MetaQuotes-Demo" />
+                  <Input placeholder="e.g. FTUKLimited-Server01" value={mt5Server} onChange={(e) => setMt5Server(e.target.value)} />
                 </div>
                 <div className="space-y-1">
-                  <Label>Password</Label>
-                  <Input type="password" placeholder="Investor password" />
+                  <Label>Investor Password</Label>
+                  <Input type="password" placeholder="Read-only password" value={mt5Password} onChange={(e) => setMt5Password(e.target.value)} />
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button size="sm" className="gap-1.5">
-                  <Plug className="h-3.5 w-3.5" />
-                  Connect
+                <Button size="sm" className="gap-1.5" onClick={handleAddMT5} disabled={mt5Saving}>
+                  {mt5Saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plug className="h-3.5 w-3.5" />}
+                  Save Account
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => setShowMT5Form(false)}>Cancel</Button>
+                <Button size="sm" variant="ghost" onClick={() => { setShowMT5Form(false); setMt5Error(""); }}>Cancel</Button>
               </div>
-              <p className="text-[11px] text-[#555]">
-                * Only investor (read-only) password required. We cannot place trades on your behalf.
+              <p className="text-[11px]" style={{ color: "var(--text-faint)" }}>
+                Investor (read-only) password only — the bridge cannot place or modify trades.
               </p>
             </div>
           )}

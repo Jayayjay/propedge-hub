@@ -1,14 +1,9 @@
 """
 PropEdge MT5 Bridge — entry point.
 
-Runs two things concurrently:
-  1. AccountWorkers  — poll MT5 every POLL_INTERVAL seconds and POST
-                       snapshots to Next.js /api/mt5/push
-  2. FastAPI server  — REST endpoints for health, account info,
-                       positions, tick data, OHLCV history, and orders
-
-Workers register their MT5 clients into server.py's registry so the
-REST endpoints can serve live data directly to the dashboard.
+Fetches active MT5 accounts from the Next.js API on startup and every
+ACCOUNT_REFRESH_INTERVAL seconds, so new users who connect accounts via
+the Settings page are picked up automatically without restarting the bridge.
 """
 import logging
 import signal
@@ -19,12 +14,14 @@ from threading import Event, Thread
 
 import uvicorn
 
-from config import ACCOUNTS, POLL_INTERVAL, LOG_LEVEL, BRIDGE_HOST, BRIDGE_PORT, AccountConfig
+from config import (
+    fetch_accounts, POLL_INTERVAL, LOG_LEVEL,
+    BRIDGE_HOST, BRIDGE_PORT, ACCOUNT_REFRESH_INTERVAL, AccountConfig,
+)
 from mt5_client import make_client
 from api_client import push_snapshot
 import server as bridge_server
 
-# ── Logging ────────────────────────────────────────────────────────────────────
 logging.basicConfig(
     level=getattr(logging, LOG_LEVEL, logging.INFO),
     format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
@@ -32,7 +29,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger("mt5_bridge")
 
-# ── Graceful shutdown ──────────────────────────────────────────────────────────
 _stop = Event()
 
 def _handle_signal(sig, frame):
@@ -46,9 +42,6 @@ signal.signal(signal.SIGTERM, _handle_signal)
 # ── Per-account push worker ────────────────────────────────────────────────────
 
 class AccountWorker:
-    """Connects to one MT5 account, polls, pushes snapshots, and registers
-    the client in the FastAPI registry for direct REST queries."""
-
     RECONNECT_DELAY = 30
 
     def __init__(self, cfg: AccountConfig):
@@ -76,7 +69,6 @@ class AccountWorker:
     def _poll(self):
         if not self._ensure_connected():
             return
-
         try:
             info = self._client.account_info()
             if info is None:
@@ -84,15 +76,13 @@ class AccountWorker:
                 self._disconnect()
                 return
 
-            positions = self._client.open_positions()
-
-            new_deals = self._client.closed_deals_since(self._last_deal_fetch)
+            positions  = self._client.open_positions()
+            new_deals  = self._client.closed_deals_since(self._last_deal_fetch)
             if new_deals:
                 logger.info("[%s] %d new closed deal(s)", self.cfg.label, len(new_deals))
                 self._last_deal_fetch = datetime.now(tz=timezone.utc)
 
-            ok = push_snapshot(info, positions, new_deals)
-            if not ok:
+            if not push_snapshot(info, positions, new_deals):
                 logger.warning("[%s] push failed — will retry next cycle", self.cfg.label)
 
         except Exception as exc:
@@ -108,53 +98,72 @@ class AccountWorker:
         logger.info("Worker stopped: %s", self.cfg.label)
 
 
+# ── Account manager — hot-reloads new users' accounts ─────────────────────────
+
+class AccountManager:
+    """Watches the API for new accounts and spawns workers for them."""
+
+    def __init__(self, stop: Event):
+        self._stop     = stop
+        self._active: dict[int, Thread] = {}   # login → thread
+
+    def _spawn(self, cfg: AccountConfig):
+        worker = AccountWorker(cfg)
+        t = Thread(
+            target=worker.run,
+            args=(self._stop,),
+            daemon=True,
+            name=f"mt5-{cfg.login}",
+        )
+        t.start()
+        self._active[cfg.login] = t
+        logger.info("Spawned worker for account %s (%s)", cfg.login, cfg.label)
+
+    def refresh(self):
+        accounts = fetch_accounts()
+        for cfg in accounts:
+            if cfg.login not in self._active:
+                self._spawn(cfg)
+            # existing workers keep running — they reconnect on their own
+
+    def run(self):
+        self.refresh()   # initial load
+        while not self._stop.is_set():
+            self._stop.wait(ACCOUNT_REFRESH_INTERVAL)
+            if not self._stop.is_set():
+                logger.debug("Refreshing account list from API…")
+                self.refresh()
+
+
 # ── Entry point ────────────────────────────────────────────────────────────────
 
 def main():
-    if not ACCOUNTS:
-        logger.error(
-            "No accounts configured. "
-            "Set MT5_ACCOUNTS in .env (format: LOGIN:PASSWORD:SERVER:LABEL)"
-        )
-        sys.exit(1)
-
     logger.info(
-        "PropEdge MT5 Bridge v2 — %d account(s), polling every %ds, API on %s:%d",
-        len(ACCOUNTS), POLL_INTERVAL, BRIDGE_HOST, BRIDGE_PORT,
+        "PropEdge MT5 Bridge — polling every %ds, "
+        "account refresh every %ds, API on %s:%d",
+        POLL_INTERVAL, ACCOUNT_REFRESH_INTERVAL, BRIDGE_HOST, BRIDGE_PORT,
     )
 
-    # Start push workers in daemon threads
-    workers = [AccountWorker(cfg) for cfg in ACCOUNTS]
-    threads = [
-        Thread(
-            target=w.run,
-            args=(_stop,),
-            daemon=True,
-            name=f"mt5-{w.cfg.login}",
-        )
-        for w in workers
-    ]
-    for t in threads:
-        t.start()
+    manager = AccountManager(_stop)
 
-    # Run FastAPI in main thread (blocks until server stops)
-    config = uvicorn.Config(
+    # Run the account manager in its own thread
+    mgr_thread = Thread(target=manager.run, daemon=True, name="account-manager")
+    mgr_thread.start()
+
+    # Block on FastAPI until Ctrl-C / SIGTERM
+    cfg = uvicorn.Config(
         app=bridge_server.app,
         host=BRIDGE_HOST,
         port=BRIDGE_PORT,
         log_level=LOG_LEVEL.lower(),
     )
-    srv = uvicorn.Server(config)
-
-    # When the server exits (e.g. Ctrl-C), signal workers to stop
+    srv = uvicorn.Server(cfg)
     try:
         srv.run()
     finally:
         _stop.set()
 
-    logger.info("Waiting for workers…")
-    for t in threads:
-        t.join(timeout=15)
+    mgr_thread.join(timeout=15)
     logger.info("Bridge stopped cleanly.")
 
 
