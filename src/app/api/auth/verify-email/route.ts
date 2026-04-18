@@ -4,7 +4,7 @@ import { users, verificationTokens } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { sendWelcomeEmail } from "@/lib/email";
 
-const BASE_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+const BASE_URL = process.env.NEXTAUTH_URL ?? "https://propedge-hub-3tt7.vercel.app/";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
