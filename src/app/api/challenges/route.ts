@@ -1,8 +1,26 @@
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { propChallenges, liveAccountData } from "@/lib/db/schema";
 import { eq, desc, inArray } from "drizzle-orm";
+import { z } from "zod";
+
+const CreateSchema = z.object({
+  firm:               z.string().min(1).max(100),
+  phase:              z.enum(["phase1", "phase2", "funded"]),
+  accountSize:        z.number().positive(),
+  startingBalance:    z.number().positive().optional(),
+  dailyDrawdownLimit: z.number().min(0).max(100),  // user enters as % e.g. 5
+  maxDrawdownLimit:   z.number().min(0).max(100),
+  profitTarget:       z.number().min(0).max(100),
+  minTradingDays:     z.number().int().min(0).default(0),
+  mt5AccountId:       z.number().int().optional().nullable(),
+  startDate:          z.string().optional(),        // ISO date string
+  endDate:            z.string().optional().nullable(),
+  notes:              z.string().max(500).optional(),
+});
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -105,4 +123,43 @@ export async function GET(req: NextRequest) {
   });
 
   return NextResponse.json({ challenges });
+}
+
+export async function POST(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  let body: z.infer<typeof CreateSchema>;
+  try {
+    body = CreateSchema.parse(await req.json());
+  } catch (err) {
+    return NextResponse.json({ error: "Invalid payload", detail: String(err) }, { status: 400 });
+  }
+
+  const startBal = body.startingBalance ?? body.accountSize;
+
+  const [created] = await db
+    .insert(propChallenges)
+    .values({
+      userId:             session.user.id,
+      firm:               body.firm,
+      phase:              body.phase,
+      accountSize:        String(body.accountSize),
+      startingBalance:    String(startBal),
+      dailyDrawdownLimit: String(body.dailyDrawdownLimit / 100), // store as fraction
+      maxDrawdownLimit:   String(body.maxDrawdownLimit   / 100),
+      profitTarget:       String(body.profitTarget       / 100),
+      minTradingDays:     body.minTradingDays,
+      mt5AccountId:       body.mt5AccountId ?? null,
+      startDate:          body.startDate ? new Date(body.startDate) : new Date(),
+      endDate:            body.endDate    ? new Date(body.endDate)  : null,
+      notes:              body.notes ?? null,
+      status:             "active",
+      isActive:           true,
+    })
+    .returning({ id: propChallenges.id });
+
+  return NextResponse.json({ id: created.id }, { status: 201 });
 }
