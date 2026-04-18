@@ -1,3 +1,49 @@
+export type FirmPhasePreset = {
+  profitTarget: number;       // decimal e.g. 0.08 = 8%
+  dailyDrawdownLimit: number; // decimal e.g. 0.05 = 5%
+  maxDrawdownLimit: number;   // decimal e.g. 0.10 = 10%
+  minTradingDays: number;
+};
+
+export const FIRM_PRESETS: Partial<
+  Record<PropFirm, { phase1?: FirmPhasePreset; phase2?: FirmPhasePreset; funded?: FirmPhasePreset }>
+> = {
+  ftuk: {
+    phase1: { profitTarget: 0.08, dailyDrawdownLimit: 0.05, maxDrawdownLimit: 0.10, minTradingDays: 0 },
+    phase2: { profitTarget: 0.05, dailyDrawdownLimit: 0.05, maxDrawdownLimit: 0.10, minTradingDays: 0 },
+    funded: { profitTarget: 0,    dailyDrawdownLimit: 0.05, maxDrawdownLimit: 0.10, minTradingDays: 0 },
+  },
+  funderpro: {
+    phase1: { profitTarget: 0.08, dailyDrawdownLimit: 0.05, maxDrawdownLimit: 0.10, minTradingDays: 5 },
+    phase2: { profitTarget: 0.05, dailyDrawdownLimit: 0.05, maxDrawdownLimit: 0.10, minTradingDays: 5 },
+    funded: { profitTarget: 0,    dailyDrawdownLimit: 0.05, maxDrawdownLimit: 0.10, minTradingDays: 0 },
+  },
+  fxify: {
+    phase1: { profitTarget: 0.08, dailyDrawdownLimit: 0.05, maxDrawdownLimit: 0.10, minTradingDays: 5 },
+    phase2: { profitTarget: 0.05, dailyDrawdownLimit: 0.05, maxDrawdownLimit: 0.10, minTradingDays: 5 },
+    funded: { profitTarget: 0,    dailyDrawdownLimit: 0.04, maxDrawdownLimit: 0.08, minTradingDays: 0 },
+  },
+  fundingpips: {
+    phase1: { profitTarget: 0.08, dailyDrawdownLimit: 0.04, maxDrawdownLimit: 0.08, minTradingDays: 5 },
+    phase2: { profitTarget: 0.05, dailyDrawdownLimit: 0.04, maxDrawdownLimit: 0.08, minTradingDays: 5 },
+    funded: { profitTarget: 0,    dailyDrawdownLimit: 0.04, maxDrawdownLimit: 0.08, minTradingDays: 0 },
+  },
+  the5ers: {
+    phase1: { profitTarget: 0.08, dailyDrawdownLimit: 0.05, maxDrawdownLimit: 0.10, minTradingDays: 0 },
+    funded: { profitTarget: 0,    dailyDrawdownLimit: 0.05, maxDrawdownLimit: 0.10, minTradingDays: 0 },
+  },
+  e8markets: {
+    phase1: { profitTarget: 0.08, dailyDrawdownLimit: 0.05, maxDrawdownLimit: 0.08, minTradingDays: 0 },
+    phase2: { profitTarget: 0.05, dailyDrawdownLimit: 0.05, maxDrawdownLimit: 0.08, minTradingDays: 0 },
+    funded: { profitTarget: 0,    dailyDrawdownLimit: 0.05, maxDrawdownLimit: 0.08, minTradingDays: 0 },
+  },
+  novafunded: {
+    phase1: { profitTarget: 0.10, dailyDrawdownLimit: 0.05, maxDrawdownLimit: 0.10, minTradingDays: 5 },
+    phase2: { profitTarget: 0.05, dailyDrawdownLimit: 0.05, maxDrawdownLimit: 0.10, minTradingDays: 5 },
+    funded: { profitTarget: 0,    dailyDrawdownLimit: 0.05, maxDrawdownLimit: 0.10, minTradingDays: 0 },
+  },
+};
+
 export type PropFirm =
   | "ftuk"
   | "funderpro"

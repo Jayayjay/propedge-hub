@@ -1,44 +1,66 @@
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { CheckCircle2, XCircle, AlertTriangle, Plug, FileDown } from "lucide-react";
-import { mockChallenge } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
+import type { LiveSnapshot } from "@/hooks/use-live-data";
 
-const rules = [
-  {
-    label: "Daily Loss Limit",
-    value: Math.abs(mockChallenge.dailyLoss),
-    limit: mockChallenge.dailyLossLimit,
-    unit: "%",
-    status: "safe",
-  },
-  {
-    label: "Max Drawdown",
-    value: mockChallenge.maxDrawdown,
-    limit: mockChallenge.maxDrawdownLimit,
-    unit: "%",
-    status: mockChallenge.maxDrawdown / mockChallenge.maxDrawdownLimit > 0.65 ? "warning" : "safe",
-  },
-  {
-    label: "Profit Target",
-    value: mockChallenge.profitAchieved,
-    limit: mockChallenge.profitTarget,
-    unit: "%",
-    status: "safe",
-    inverse: true,
-  },
-  {
-    label: "Min Trading Days",
-    value: mockChallenge.tradingDays,
-    limit: mockChallenge.minTradingDays,
-    unit: " days",
-    status: "safe",
-    inverse: true,
-  },
-];
+interface RulesPanelProps {
+  snapshot?: LiveSnapshot | null;
+}
 
-export function RulesPanel() {
+export function RulesPanel({ snapshot }: RulesPanelProps) {
+  const hasLive = snapshot !== null && snapshot !== undefined;
+
+  const dailyLossVal   = hasLive ? Math.abs(snapshot.dailyLoss  ?? 0) : 0;
+  const maxDDVal       = hasLive ? (snapshot.maxDrawdown         ?? 0) : 0;
+  const profitVal      = hasLive ? (snapshot.profitAchieved      ?? 0) : 0;
+  // minTradingDays: not tracked in liveAccountData, show as 0 / limit
+  const tradingDays    = 0;
+
+  const dailyLossLimit  = hasLive ? snapshot.dailyDrawdownLimit : 5;
+  const maxDDLimit      = hasLive ? snapshot.maxDrawdownLimit   : 10;
+  const profitTarget    = hasLive ? snapshot.profitTarget       : 10;
+  const minTradingDays  = hasLive ? (snapshot.minTradingDays ?? 0) : 5;
+
+  const firmLabel = hasLive ? `${snapshot.firm} · ${snapshot.phase}` : "No challenge linked";
+
+  const rules = [
+    {
+      label: "Daily Loss",
+      value: dailyLossVal,
+      limit: dailyLossLimit,
+      unit: "%",
+      status: dailyLossVal / dailyLossLimit > 0.65 ? "warning" : "safe",
+      inverse: false,
+    },
+    {
+      label: "Max Drawdown",
+      value: maxDDVal,
+      limit: maxDDLimit,
+      unit: "%",
+      status: maxDDVal / maxDDLimit > 0.65 ? "warning" : "safe",
+      inverse: false,
+    },
+    {
+      label: "Profit Target",
+      value: profitVal,
+      limit: profitTarget,
+      unit: "%",
+      status: "safe" as const,
+      inverse: true,
+    },
+    {
+      label: "Min Trading Days",
+      value: tradingDays,
+      limit: minTradingDays,
+      unit: " days",
+      status: "safe" as const,
+      inverse: true,
+    },
+  ];
+
   const breachRisk = rules.some((r) => r.status === "warning" || r.status === "danger");
 
   return (
@@ -46,7 +68,7 @@ export function RulesPanel() {
       {/* Active Firm Rules */}
       <Card>
         <CardHeader>
-          <CardTitle>Active Rules · FTUK Phase 2</CardTitle>
+          <CardTitle>Active Rules · {firmLabel}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {rules.map((rule) => {
@@ -80,7 +102,7 @@ export function RulesPanel() {
                     <span style={{ color: "var(--text-muted)" }}>{rule.label}</span>
                   </div>
                   <span className="font-mono" style={{ color: statusColor }}>
-                    {rule.value}{rule.unit} / {rule.limit}{rule.unit}
+                    {rule.value.toFixed(2)}{rule.unit} / {rule.limit}{rule.unit}
                   </span>
                 </div>
                 <Progress
@@ -107,7 +129,10 @@ export function RulesPanel() {
               <div>
                 <p className="text-sm font-semibold text-[#F59E0B]">Breach Risk Detected</p>
                 <p className="text-xs mt-0.5" style={{ color: "var(--text-faint)" }}>
-                  Max drawdown at {((mockChallenge.maxDrawdown / mockChallenge.maxDrawdownLimit) * 100).toFixed(0)}% of limit. Reduce position sizes.
+                  {maxDDVal / maxDDLimit > 0.65
+                    ? `Max drawdown at ${((maxDDVal / maxDDLimit) * 100).toFixed(0)}% of limit.`
+                    : `Daily loss at ${((dailyLossVal / dailyLossLimit) * 100).toFixed(0)}% of limit.`}{" "}
+                  Reduce position sizes.
                 </p>
               </div>
             </div>
@@ -121,9 +146,11 @@ export function RulesPanel() {
           <CardTitle>Quick Actions</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
-          <Button variant="secondary" size="sm" className="w-full justify-start gap-2">
-            <Plug className="h-3.5 w-3.5" />
-            Connect MT5 Account
+          <Button variant="secondary" size="sm" className="w-full justify-start gap-2" asChild>
+            <Link href="/dashboard/settings">
+              <Plug className="h-3.5 w-3.5" />
+              Connect MT5 Account
+            </Link>
           </Button>
           <Button variant="secondary" size="sm" className="w-full justify-start gap-2">
             <FileDown className="h-3.5 w-3.5" />

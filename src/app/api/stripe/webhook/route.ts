@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { db } from "@/lib/db";
@@ -8,6 +10,10 @@ import { sendSubscriptionEmail } from "@/lib/email";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-03-25.dahlia",
 });
+
+export async function GET() {
+  return NextResponse.json({ ok: true, endpoint: "stripe-webhook" });
+}
 
 export async function POST(req: NextRequest) {
   const body = await req.text();

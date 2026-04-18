@@ -57,6 +57,10 @@ export default function SettingsPage() {
   const [profileSaving, setProfileSaving]   = useState(false);
   const [profileSaved, setProfileSaved]     = useState(false);
 
+  // Subscription state
+  const [currentPlan, setCurrentPlan] = useState("free");
+  const [periodEnd, setPeriodEnd]     = useState<string | null>(null);
+
   // MT5 accounts state
   const [mt5Accounts, setMt5Accounts]         = useState<MT5Account[]>([]);
   const [mt5Label, setMt5Label]               = useState("");
@@ -73,6 +77,8 @@ export default function SettingsPage() {
         if (d.name)           setName(d.name);
         if (d.email)          setEmail(d.email);
         if (d.whatsappNumber) setWhatsappNumber(d.whatsappNumber);
+        if (d.plan)           setCurrentPlan(d.plan);
+        if (d.currentPeriodEnd) setPeriodEnd(d.currentPeriodEnd);
       })
       .catch(() => {});
 
@@ -256,9 +262,14 @@ export default function SettingsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-3 mb-5 p-3 rounded-lg bg-[#2A2A2A]">
-            <Badge variant="default">Free Plan</Badge>
-            <span className="text-sm text-[#888]">Upgrade to unlock all features</span>
+          <div className="flex items-center gap-3 mb-5 p-3 rounded-lg" style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}>
+            <Badge variant="default" className="capitalize">{currentPlan} Plan</Badge>
+            {currentPlan === "free"
+              ? <span className="text-sm" style={{ color: "var(--text-muted)" }}>Upgrade to unlock all features</span>
+              : <span className="text-sm" style={{ color: "var(--text-muted)" }}>
+                  Active{periodEnd ? ` · renews ${new Date(periodEnd).toLocaleDateString()}` : ""}
+                </span>
+            }
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -267,8 +278,8 @@ export default function SettingsPage() {
                 key={plan.id}
                 onClick={() => setSelectedPlan(plan.id)}
                 className={`relative rounded-xl border p-4 cursor-pointer transition-all ${
-                  plan.current || selectedPlan === plan.id
-                    ? "border-[#22C55E]/40 bg-[#22C55E]/5"
+                  currentPlan === plan.id || selectedPlan === plan.id
+                    ? "border-white/20 bg-white/4"
                     : "border-white/8 hover:border-white/15"
                 }`}
               >
@@ -292,20 +303,20 @@ export default function SettingsPage() {
                     </li>
                   ))}
                 </ul>
-                {!plan.current && (
+                {currentPlan !== plan.id && (
                   <Button
                     size="sm"
                     className="w-full mt-4 gap-1.5"
                     variant={selectedPlan === plan.id ? "default" : "outline"}
                     onClick={(e) => { e.stopPropagation(); handleUpgrade(plan.id); }}
-                    disabled={upgrading === plan.id}
+                    disabled={upgrading === plan.id || plan.id === "free"}
                   >
                     {upgrading === plan.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3" />}
-                    Upgrade to {plan.name}
+                    {plan.id === "free" ? "Current" : `Upgrade to ${plan.name}`}
                   </Button>
                 )}
-                {plan.current && (
-                  <div className="mt-4 text-center text-xs text-[#22C55E] font-medium">✓ Current Plan</div>
+                {currentPlan === plan.id && (
+                  <div className="mt-4 text-center text-xs font-medium" style={{ color: "var(--text-muted)" }}>✓ Current Plan</div>
                 )}
               </div>
             ))}
@@ -344,7 +355,7 @@ export default function SettingsPage() {
               </div>
               {acc.lastSync
                 ? <Badge variant="default" className="text-[10px] bg-white/8 text-white border-0">Connected</Badge>
-                : <Badge variant="secondary" className="text-[10px]">Pending</Badge>
+                : <Badge variant="secondary" className="text-[10px]" title="Account saved — start the MT5 bridge to begin syncing">Saved · start bridge</Badge>
               }
               <Button
                 variant="ghost"

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { users } from "@/lib/db/schema";
+import { users, subscriptions } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
@@ -13,9 +13,9 @@ export async function GET() {
 
   const [user] = await db
     .select({
-      name:            users.name,
-      email:           users.email,
-      whatsappNumber:  users.whatsappNumber,
+      name:           users.name,
+      email:          users.email,
+      whatsappNumber: users.whatsappNumber,
     })
     .from(users)
     .where(eq(users.id, session.user.id))
@@ -23,7 +23,22 @@ export async function GET() {
 
   if (!user) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  return NextResponse.json(user);
+  const [sub] = await db
+    .select({
+      plan:               subscriptions.plan,
+      status:             subscriptions.status,
+      currentPeriodEnd:   subscriptions.currentPeriodEnd,
+    })
+    .from(subscriptions)
+    .where(eq(subscriptions.userId, session.user.id))
+    .limit(1);
+
+  return NextResponse.json({
+    ...user,
+    plan:             sub?.status === "active" ? (sub.plan ?? "free") : "free",
+    subscriptionStatus: sub?.status ?? null,
+    currentPeriodEnd:   sub?.currentPeriodEnd ?? null,
+  });
 }
 
 const PatchSchema = z.object({

@@ -425,7 +425,7 @@ export default function LandingPage() {
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </Link>
-            <Link href="/dashboard">
+            <Link href="/demo">
               <Button
                 variant="outline"
                 size="lg"
