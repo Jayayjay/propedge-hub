@@ -2,15 +2,15 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { TrendingUp, Mail, Lock, User, Loader2, Check, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, User, Loader2, Eye, EyeOff, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 const perks = [
-  "Track unlimited prop challenges",
   "Real-time MT5 drawdown monitoring",
-  "Never breach a rule accidentally",
+  "Never breach a prop rule accidentally",
+  "WhatsApp & email alerts before limits",
 ];
 
 export default function SignupPage() {
@@ -49,48 +49,55 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center p-4">
-      <div className="fixed inset-0 flex items-center justify-center pointer-events-none">
-        <div className="h-96 w-96 rounded-full bg-[#22C55E]/5 blur-3xl" />
-      </div>
+    <div className="min-h-screen bg-black flex items-center justify-center p-4">
+      {/* Subtle grid overlay */}
+      <div
+        className="fixed inset-0 pointer-events-none opacity-[0.03]"
+        style={{
+          backgroundImage: "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)",
+          backgroundSize: "60px 60px",
+        }}
+      />
 
       <div className="relative w-full max-w-sm">
         {/* Logo */}
-        <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#22C55E]">
-            <TrendingUp className="h-[18px] w-[18px] text-black" />
+        <div className="flex items-center justify-center gap-2.5 mb-10">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M2 12L6 7L9 10L13 4" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
           </div>
-          <span className="text-xl font-black tracking-tight">
-            PropEdge<span className="text-[#22C55E]">Hub</span>
+          <span className="text-lg font-black tracking-tight text-white">
+            PropEdge<span className="text-white/50">Hub</span>
           </span>
         </div>
 
-        <div className="rounded-2xl border border-white/8 bg-[#111] p-7 shadow-2xl">
+        <div className="rounded-2xl border border-white/8 bg-[#0D0D0D] p-7 shadow-2xl shadow-black/60">
           {!sent ? (
             <>
-              <h1 className="text-xl font-bold text-[#F1F1F1] mb-1">Create your account</h1>
-              <p className="text-sm text-[#666] mb-5">Free forever · No credit card required</p>
+              <h1 className="text-xl font-bold text-white mb-1">Create your account</h1>
+              <p className="text-sm text-[#555] mb-6">Free forever · No credit card required</p>
 
-              <ul className="space-y-1.5 mb-6">
+              <ul className="space-y-2 mb-6 pb-6 border-b border-white/5">
                 {perks.map((p) => (
-                  <li key={p} className="flex items-center gap-2 text-xs text-[#888]">
-                    <Check className="h-3 w-3 text-[#22C55E]" />
+                  <li key={p} className="flex items-center gap-2.5 text-xs text-[#666]">
+                    <span className="h-1 w-1 rounded-full bg-white/40 shrink-0" />
                     {p}
                   </li>
                 ))}
               </ul>
 
               {error && (
-                <div className="mb-4 rounded-lg border border-[#EF4444]/20 bg-[#EF4444]/10 px-4 py-3 text-sm text-[#EF4444]">
+                <div className="mb-5 rounded-lg border border-[#EF4444]/20 bg-[#EF4444]/8 px-4 py-3 text-sm text-[#EF4444]">
                   {error}
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-3.5">
+              <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="name">Full name</Label>
+                  <Label htmlFor="name" className="text-[#888] text-xs font-medium uppercase tracking-wider">Full Name</Label>
                   <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#555]" />
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#444]" />
                     <Input
                       id="name"
                       placeholder="John Trader"
@@ -103,9 +110,9 @@ export default function SignupPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="email">Email address</Label>
+                  <Label htmlFor="email" className="text-[#888] text-xs font-medium uppercase tracking-wider">Email</Label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#555]" />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#444]" />
                     <Input
                       id="email"
                       type="email"
@@ -119,9 +126,9 @@ export default function SignupPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password" className="text-[#888] text-xs font-medium uppercase tracking-wider">Password</Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#555]" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#444]" />
                     <Input
                       id="password"
                       type={showPassword ? "text" : "password"}
@@ -134,33 +141,34 @@ export default function SignupPage() {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#555] hover:text-[#888] transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#444] hover:text-[#888] transition-colors"
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
                 </div>
 
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create Account"}
+                <Button type="submit" className="w-full mt-1" disabled={loading}>
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>Create Account <ArrowRight className="h-4 w-4" /></>
+                  )}
                 </Button>
               </form>
             </>
           ) : (
-            /* ── Email sent state ── */
-            <div className="text-center py-2">
-              <div className="h-14 w-14 rounded-full bg-[#22C55E]/15 flex items-center justify-center mx-auto mb-5">
-                <Mail className="h-6 w-6 text-[#22C55E]" />
+            <div className="text-center py-4">
+              <div className="h-14 w-14 rounded-full border border-white/10 bg-white/5 flex items-center justify-center mx-auto mb-6">
+                <Mail className="h-6 w-6 text-white" />
               </div>
-              <h2 className="text-lg font-bold text-[#F1F1F1] mb-2">Check your inbox</h2>
-              <p className="text-sm text-[#666] leading-relaxed mb-1">
-                We sent a verification link to
+              <h2 className="text-lg font-bold text-white mb-2">Check your inbox</h2>
+              <p className="text-sm text-[#555] leading-relaxed mb-1">We sent a verification link to</p>
+              <p className="text-sm font-semibold text-white mb-4">{email}</p>
+              <p className="text-xs text-[#444] leading-relaxed mb-7">
+                Click the link to activate your account. It expires in 24 hours.
               </p>
-              <p className="text-sm font-semibold text-[#F1F1F1] mb-4">{email}</p>
-              <p className="text-xs text-[#555] leading-relaxed mb-6">
-                Click the link in the email to activate your account. It expires in 24 hours.
-              </p>
-              <Button variant="ghost" className="text-xs w-full" onClick={() => setSent(false)}>
+              <Button variant="secondary" className="text-xs w-full" onClick={() => setSent(false)}>
                 Use a different email
               </Button>
             </div>
@@ -168,9 +176,9 @@ export default function SignupPage() {
         </div>
 
         {!sent && (
-          <p className="text-center text-xs text-[#555] mt-5">
+          <p className="text-center text-xs text-[#444] mt-6">
             Already have an account?{" "}
-            <Link href="/login" className="text-[#22C55E] hover:underline">
+            <Link href="/login" className="text-white hover:text-white/80 underline underline-offset-4">
               Sign in
             </Link>
           </p>

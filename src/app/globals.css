@@ -22,21 +22,21 @@
 
 /* ─── Dark mode tokens ────────────────────────────────────────────── */
 .dark {
-  --bg:           #0a0a0a;
-  --bg-subtle:    #0d0d0d;
-  --surface:      #111111;
-  --surface-2:    #1f1f1f;
-  --border:       rgba(255, 255, 255, 0.06);
+  --bg:           #000000;
+  --bg-subtle:    #0a0a0a;
+  --surface:      #0d0d0d;
+  --surface-2:    #1a1a1a;
+  --border:       rgba(255, 255, 255, 0.07);
   --border-2:     rgba(255, 255, 255, 0.04);
   --text:         #f1f1f1;
-  --text-muted:   #888888;
-  --text-faint:   #555555;
+  --text-muted:   #777777;
+  --text-faint:   #444444;
   --accent:       #22C55E;
-  --accent-dim:   rgba(34, 197, 94, 0.10);
+  --accent-dim:   rgba(34, 197, 94, 0.08);
   --danger:       #EF4444;
   --warning:      #F59E0B;
-  --scrollbar:    rgba(255,255,255,0.10);
-  --heading-gradient: linear-gradient(135deg, #ffffff 0%, #aaaaaa 100%);
+  --scrollbar:    rgba(255,255,255,0.07);
+  --heading-gradient: linear-gradient(135deg, #ffffff 0%, #888888 100%);
   color-scheme: dark;
 }
 

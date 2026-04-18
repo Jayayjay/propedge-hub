@@ -7,7 +7,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 import type { EquityPoint } from "@/hooks/use-live-data";
-import { Loader2, Wifi } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 interface Props {
   data:            EquityPoint[];
@@ -23,8 +23,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
         className="rounded-xl px-3 py-2.5 shadow-xl text-xs"
         style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
       >
-        <p className="mb-1" style={{ color: "var(--text-muted)" }}>{label}</p>
-        <p className="font-bold text-[#22C55E]">{formatCurrency(payload[0].value)}</p>
+        <p className="mb-1" style={{ color: "var(--text-faint)" }}>{label}</p>
+        <p className="font-bold" style={{ color: "var(--text)" }}>{formatCurrency(payload[0].value)}</p>
       </div>
     );
   }
@@ -51,7 +51,7 @@ export function EquityChart({ data, startingBalance, isLive = false, isLoading =
           </CardTitle>
           <p className="text-xl font-bold mt-1" style={{ color: "var(--text)" }}>
             {isLoading
-              ? <Loader2 className="h-5 w-5 animate-spin inline text-[#22C55E]" />
+              ? <Loader2 className="h-5 w-5 animate-spin inline" style={{ color: "var(--text-faint)" }} />
               : formatCurrency(currentEquity)
             }
           </p>
@@ -71,13 +71,13 @@ export function EquityChart({ data, startingBalance, isLive = false, isLoading =
           <AreaChart data={data} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="equityGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor="#22C55E" stopOpacity={0.2} />
-                <stop offset="95%" stopColor="#22C55E" stopOpacity={0}   />
+                <stop offset="5%"  stopColor="#ffffff" stopOpacity={0.08} />
+                <stop offset="95%" stopColor="#ffffff" stopOpacity={0}   />
               </linearGradient>
             </defs>
             <CartesianGrid
               strokeDasharray="3 3"
-              stroke="rgba(128,128,128,0.08)"
+              stroke="rgba(255,255,255,0.04)"
               vertical={false}
             />
             <XAxis
@@ -97,17 +97,17 @@ export function EquityChart({ data, startingBalance, isLive = false, isLoading =
             <Tooltip content={<CustomTooltip />} />
             <ReferenceLine
               y={startingBalance}
-              stroke="rgba(128,128,128,0.2)"
+              stroke="rgba(255,255,255,0.08)"
               strokeDasharray="4 4"
             />
             <Area
               type="monotone"
               dataKey="equity"
-              stroke="#22C55E"
-              strokeWidth={2}
+              stroke="rgba(255,255,255,0.5)"
+              strokeWidth={1.5}
               fill="url(#equityGradient)"
               dot={false}
-              activeDot={{ r: 4, fill: "#22C55E", stroke: "#0A0A0A", strokeWidth: 2 }}
+              activeDot={{ r: 3, fill: "#ffffff", stroke: "#0A0A0A", strokeWidth: 2 }}
               isAnimationActive={false}
             />
           </AreaChart>
