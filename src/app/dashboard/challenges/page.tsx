@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { Plus, TrendingUp, ShieldAlert, Calendar, Target, Loader2, X, ChevronDown } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Plus, TrendingUp, ShieldAlert, Calendar, Target, Loader2, X, ChevronDown, Plug, PlugZap } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -54,6 +54,8 @@ const FIRMS = Object.entries(propFirmLogos).map(([key, v]) => ({ key: key as Pro
 
 // ── New Challenge Modal ────────────────────────────────────────────────────────
 
+type MT5Mode = "none" | "existing" | "new";
+
 function NewChallengeModal({
   onClose,
   onCreated,
@@ -61,28 +63,43 @@ function NewChallengeModal({
   onClose: () => void;
   onCreated: () => void;
 }) {
-  const [firm, setFirm]       = useState<PropFirm | "">("");
-  const [phase, setPhase]     = useState<"phase1" | "phase2" | "funded">("phase1");
+  // Challenge fields
+  const [firm, setFirm]             = useState<PropFirm | "">("");
+  const [phase, setPhase]           = useState<"phase1" | "phase2" | "funded">("phase1");
   const [accountSize, setAccountSize] = useState("");
-  const [dailyDD, setDailyDD] = useState("");
-  const [maxDD, setMaxDD]     = useState("");
-  const [profit, setProfit]   = useState("");
-  const [minDays, setMinDays] = useState("0");
-  const [mt5Id, setMt5Id]     = useState<number | "">("");
-  const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
-  const [endDate, setEndDate]   = useState("");
-  const [saving, setSaving]   = useState(false);
-  const [error, setError]     = useState("");
-  const [mt5Accounts, setMt5Accounts] = useState<MT5Account[]>([]);
+  const [dailyDD, setDailyDD]       = useState("");
+  const [maxDD, setMaxDD]           = useState("");
+  const [profit, setProfit]         = useState("");
+  const [minDays, setMinDays]       = useState("0");
+  const [startDate, setStartDate]   = useState(new Date().toISOString().slice(0, 10));
+  const [endDate, setEndDate]       = useState("");
+
+  // MT5 connectivity
+  const [mt5Mode, setMt5Mode]       = useState<MT5Mode>("none");
+  const [existingAccounts, setExistingAccounts] = useState<MT5Account[]>([]);
+  const [selectedMt5Id, setSelectedMt5Id] = useState<number | "">("");
+  // New account fields
+  const [newLabel, setNewLabel]     = useState("");
+  const [newAccNum, setNewAccNum]   = useState("");
+  const [newServer, setNewServer]   = useState("");
+  const [newPassword, setNewPassword] = useState("");
+
+  const [saving, setSaving]         = useState(false);
+  const [error, setError]           = useState("");
 
   useEffect(() => {
     fetch("/api/mt5/accounts")
       .then((r) => r.json())
-      .then((d) => Array.isArray(d) && setMt5Accounts(d))
+      .then((d) => {
+        if (Array.isArray(d) && d.length > 0) {
+          setExistingAccounts(d);
+          setMt5Mode("existing");
+          setSelectedMt5Id(d[0].id);
+        }
+      })
       .catch(() => {});
   }, []);
 
-  // Auto-fill rules when firm + phase changes
   useEffect(() => {
     if (!firm) return;
     const preset = FIRM_PRESETS[firm]?.[phase];
@@ -99,23 +116,53 @@ function NewChallengeModal({
     setError("");
     if (!firm) { setError("Select a prop firm."); return; }
     if (!accountSize || isNaN(Number(accountSize))) { setError("Enter a valid account size."); return; }
+    if (mt5Mode === "new" && (!newLabel || !newAccNum || !newServer || !newPassword)) {
+      setError("Fill in all MT5 account fields or choose an existing account.");
+      return;
+    }
 
     setSaving(true);
     try {
+      // Step 1: create MT5 account if needed
+      let mt5AccountId: number | null = null;
+
+      if (mt5Mode === "existing" && selectedMt5Id) {
+        mt5AccountId = Number(selectedMt5Id);
+      } else if (mt5Mode === "new") {
+        const r = await fetch("/api/mt5/accounts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            label:         newLabel.trim(),
+            accountNumber: newAccNum.trim(),
+            serverName:    newServer.trim(),
+            password:      newPassword,
+          }),
+        });
+        if (!r.ok) {
+          const d = await r.json();
+          setError(d.error ?? "Failed to save MT5 account.");
+          return;
+        }
+        const created = await r.json();
+        mt5AccountId = created.id;
+      }
+
+      // Step 2: create challenge
       const res = await fetch("/api/challenges", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          firm: propFirmLogos[firm].name,
+          firm:               propFirmLogos[firm].name,
           phase,
           accountSize:        Number(accountSize),
           dailyDrawdownLimit: Number(dailyDD),
           maxDrawdownLimit:   Number(maxDD),
           profitTarget:       Number(profit),
           minTradingDays:     Number(minDays),
-          mt5AccountId:       mt5Id || null,
+          mt5AccountId,
           startDate,
-          endDate:            endDate || null,
+          endDate: endDate || null,
         }),
       });
       if (!res.ok) {
@@ -129,6 +176,12 @@ function NewChallengeModal({
     } finally {
       setSaving(false);
     }
+  };
+
+  const selectStyle = {
+    background: "var(--surface-2)",
+    border: "1px solid var(--border)",
+    color: "var(--text)",
   };
 
   return (
@@ -146,7 +199,8 @@ function NewChallengeModal({
         </div>
 
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
-          {/* Firm */}
+
+          {/* ── Firm ── */}
           <div className="space-y-1.5">
             <Label>Prop Firm</Label>
             <div className="relative">
@@ -154,11 +208,7 @@ function NewChallengeModal({
                 value={firm}
                 onChange={(e) => setFirm(e.target.value as PropFirm)}
                 className="w-full appearance-none rounded-lg px-3 py-2 text-sm pr-8"
-                style={{
-                  background: "var(--surface-2)",
-                  border: "1px solid var(--border)",
-                  color: firm ? "var(--text)" : "var(--text-faint)",
-                }}
+                style={{ ...selectStyle, color: firm ? "var(--text)" : "var(--text-faint)" }}
                 required
               >
                 <option value="" disabled>Select a firm…</option>
@@ -170,7 +220,7 @@ function NewChallengeModal({
             </div>
           </div>
 
-          {/* Phase */}
+          {/* ── Phase ── */}
           <div className="space-y-1.5">
             <Label>Phase</Label>
             <div className="flex gap-2">
@@ -179,11 +229,8 @@ function NewChallengeModal({
                   key={p}
                   type="button"
                   onClick={() => setPhase(p)}
-                  className={cn(
-                    "flex-1 py-2 rounded-lg text-sm font-medium transition-colors",
-                    phase === p
-                      ? "bg-white text-black"
-                      : "text-[#666] hover:text-white"
+                  className={cn("flex-1 py-2 rounded-lg text-sm font-medium transition-colors",
+                    phase === p ? "bg-white text-black" : "text-[#666] hover:text-white"
                   )}
                   style={phase !== p ? { background: "var(--surface-2)", border: "1px solid var(--border)" } : {}}
                 >
@@ -193,74 +240,134 @@ function NewChallengeModal({
             </div>
           </div>
 
-          {/* Account size */}
+          {/* ── Account size ── */}
           <div className="space-y-1.5">
             <Label>Account Size ($)</Label>
-            <Input
-              type="number"
-              placeholder="100000"
-              value={accountSize}
-              onChange={(e) => setAccountSize(e.target.value)}
-              min={0}
-              required
-            />
+            <Input type="number" placeholder="100000" value={accountSize}
+              onChange={(e) => setAccountSize(e.target.value)} min={0} required />
           </div>
 
-          {/* Rules — 2 column grid */}
+          {/* ── Rules ── */}
           <div className="space-y-1.5">
-            <Label>Rules {firm && <span className="text-[10px] ml-1" style={{ color: "var(--text-faint)" }}>(auto-filled from firm preset)</span>}</Label>
+            <Label>
+              Challenge Rules
+              {firm && <span className="text-[10px] ml-1.5 font-normal" style={{ color: "var(--text-faint)" }}>auto-filled · edit if different</span>}
+            </Label>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <p className="text-[11px]" style={{ color: "var(--text-faint)" }}>Daily Loss Limit (%)</p>
-                <Input type="number" step="0.1" min="0" max="100" value={dailyDD} onChange={(e) => setDailyDD(e.target.value)} placeholder="5" required />
-              </div>
-              <div className="space-y-1">
-                <p className="text-[11px]" style={{ color: "var(--text-faint)" }}>Max Drawdown (%)</p>
-                <Input type="number" step="0.1" min="0" max="100" value={maxDD} onChange={(e) => setMaxDD(e.target.value)} placeholder="10" required />
-              </div>
-              <div className="space-y-1">
-                <p className="text-[11px]" style={{ color: "var(--text-faint)" }}>Profit Target (%)</p>
-                <Input type="number" step="0.1" min="0" max="100" value={profit} onChange={(e) => setProfit(e.target.value)} placeholder="8" required />
-              </div>
-              <div className="space-y-1">
-                <p className="text-[11px]" style={{ color: "var(--text-faint)" }}>Min Trading Days</p>
-                <Input type="number" min="0" value={minDays} onChange={(e) => setMinDays(e.target.value)} placeholder="0" />
-              </div>
+              {[
+                { label: "Daily Loss Limit (%)", val: dailyDD, set: setDailyDD, ph: "5" },
+                { label: "Max Drawdown (%)",     val: maxDD,   set: setMaxDD,   ph: "10" },
+                { label: "Profit Target (%)",    val: profit,  set: setProfit,  ph: "8" },
+                { label: "Min Trading Days",     val: minDays, set: setMinDays, ph: "0", int: true },
+              ].map(({ label, val, set, ph, int }) => (
+                <div key={label} className="space-y-1">
+                  <p className="text-[11px]" style={{ color: "var(--text-faint)" }}>{label}</p>
+                  <Input type="number" step={int ? "1" : "0.1"} min="0" max={int ? undefined : "100"}
+                    value={val} onChange={(e) => set(e.target.value)} placeholder={ph} required={label !== "Min Trading Days"} />
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Dates */}
+          {/* ── Dates ── */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Start Date</Label>
               <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
             </div>
             <div className="space-y-1.5">
-              <Label>End Date <span style={{ color: "var(--text-faint)" }}>(optional)</span></Label>
+              <Label style={{ color: "var(--text-muted)" }}>End Date (optional)</Label>
               <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
             </div>
           </div>
 
-          {/* MT5 account */}
-          {mt5Accounts.length > 0 && (
-            <div className="space-y-1.5">
-              <Label>MT5 Account <span style={{ color: "var(--text-faint)" }}>(optional)</span></Label>
-              <div className="relative">
-                <select
-                  value={mt5Id}
-                  onChange={(e) => setMt5Id(e.target.value ? Number(e.target.value) : "")}
-                  className="w-full appearance-none rounded-lg px-3 py-2 text-sm pr-8"
-                  style={{ background: "var(--surface-2)", border: "1px solid var(--border)", color: "var(--text)" }}
-                >
-                  <option value="">None</option>
-                  {mt5Accounts.map((a) => (
-                    <option key={a.id} value={a.id}>{a.label} ({a.accountNumber})</option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-2.5 top-2.5 h-4 w-4 pointer-events-none" style={{ color: "var(--text-faint)" }} />
-              </div>
+          {/* ── MT5 Connectivity ── */}
+          <div className="space-y-2.5">
+            <div className="flex items-center gap-2">
+              <PlugZap className="h-3.5 w-3.5" style={{ color: "var(--text-muted)" }} />
+              <Label className="mb-0">MT5 Account</Label>
+              <span className="text-[10px]" style={{ color: "var(--text-faint)" }}>optional — link for live tracking</span>
             </div>
-          )}
+
+            {/* Mode tabs */}
+            <div className="flex gap-1 p-0.5 rounded-lg w-fit" style={{ background: "var(--surface-2)" }}>
+              {([
+                { key: "none",     label: "Skip" },
+                { key: "existing", label: `Existing${existingAccounts.length ? ` (${existingAccounts.length})` : ""}` },
+                { key: "new",      label: "Add New" },
+              ] as const).map(({ key, label }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setMt5Mode(key)}
+                  className={cn(
+                    "px-3 py-1 rounded-md text-xs font-medium transition-all",
+                    mt5Mode === key
+                      ? "bg-white text-black shadow-sm"
+                      : "hover:text-white"
+                  )}
+                  style={mt5Mode !== key ? { color: "var(--text-faint)" } : {}}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* Existing account picker */}
+            {mt5Mode === "existing" && (
+              existingAccounts.length === 0 ? (
+                <p className="text-xs" style={{ color: "var(--text-faint)" }}>
+                  No saved accounts. Use "Add New" to connect one.
+                </p>
+              ) : (
+                <div className="relative">
+                  <select
+                    value={selectedMt5Id}
+                    onChange={(e) => setSelectedMt5Id(Number(e.target.value))}
+                    className="w-full appearance-none rounded-lg px-3 py-2 text-sm pr-8"
+                    style={selectStyle}
+                  >
+                    {existingAccounts.map((a) => (
+                      <option key={a.id} value={a.id}>{a.label} · {a.accountNumber}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-2.5 top-2.5 h-4 w-4 pointer-events-none" style={{ color: "var(--text-faint)" }} />
+                </div>
+              )
+            )}
+
+            {/* New account inline form */}
+            {mt5Mode === "new" && (
+              <div
+                className="rounded-xl p-4 space-y-3"
+                style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
+              >
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <p className="text-[11px]" style={{ color: "var(--text-faint)" }}>Label (nickname)</p>
+                    <Input placeholder="My FTUK Account" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[11px]" style={{ color: "var(--text-faint)" }}>Account Number</p>
+                    <Input placeholder="12345678" value={newAccNum} onChange={(e) => setNewAccNum(e.target.value)} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <p className="text-[11px]" style={{ color: "var(--text-faint)" }}>Server</p>
+                    <Input placeholder="FTUK-Server" value={newServer} onChange={(e) => setNewServer(e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[11px]" style={{ color: "var(--text-faint)" }}>Investor Password</p>
+                    <Input type="password" placeholder="Read-only password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+                  </div>
+                </div>
+                <p className="text-[10px]" style={{ color: "var(--text-faint)" }}>
+                  Investor (read-only) password only — the bridge cannot place or modify trades.
+                </p>
+              </div>
+            )}
+          </div>
 
           {error && <p className="text-xs text-[#EF4444]">{error}</p>}
 
