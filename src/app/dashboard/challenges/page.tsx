@@ -1,16 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, TrendingUp, ShieldAlert, Calendar, Target, Loader2, X, ChevronDown, Plug, PlugZap } from "lucide-react";
+import { useSearchParams, useRouter } from "next/navigation";
+import {
+  Plus, TrendingUp, ShieldAlert, Calendar, Target, Loader2, X, ChevronDown,
+  Plug, PlugZap, MoreVertical, Trash2, Archive, CheckCircle2, XCircle,
+} from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { ChallengeCardsSkeleton } from "@/components/prop-tracker/dashboard-skeleton";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { propFirmLogos, FIRM_PRESETS } from "@/lib/prop-firms";
 import type { PropFirm } from "@/lib/prop-firms";
+import { toast } from "@/lib/toast-store";
 
 type TabKey = "active" | "completed";
 
@@ -170,6 +178,7 @@ function NewChallengeModal({
         setError(d.error ?? "Failed to create challenge.");
         return;
       }
+      toast.success("Challenge created", `${propFirmLogos[firm as PropFirm].name} · ${PHASE_LABELS[phase]} is now tracked.`);
       onCreated();
     } catch {
       setError("Network error.");
@@ -392,6 +401,10 @@ export default function ChallengesPage() {
   const [challenges, setChallenges]   = useState<Challenge[]>([]);
   const [loading, setLoading]         = useState(true);
   const [showModal, setShowModal]     = useState(false);
+  const [actingId, setActingId]       = useState<number | null>(null);
+  const searchParams                  = useSearchParams();
+  const router                        = useRouter();
+  const queryClient                   = useQueryClient();
 
   const loadChallenges = () => {
     setLoading(true);
@@ -402,6 +415,58 @@ export default function ChallengesPage() {
   };
 
   useEffect(() => { loadChallenges(); }, []);
+
+  // Auto-open from ?new=1 (from command palette or empty-state CTA)
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      setShowModal(true);
+      router.replace("/dashboard/challenges");
+    }
+  }, [searchParams, router]);
+
+  const refreshShared = () => {
+    loadChallenges();
+    queryClient.invalidateQueries({ queryKey: ["challenges-list"] });
+  };
+
+  const handleUpdateStatus = async (id: number, newStatus: string) => {
+    setActingId(id);
+    try {
+      const res = await fetch(`/api/challenges/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) {
+        toast.error("Couldn't update challenge", "Please try again.");
+        return;
+      }
+      toast.success(
+        newStatus === "passed" ? "Marked as passed" :
+        newStatus === "failed" ? "Marked as failed" :
+        newStatus === "active" ? "Reactivated" : "Archived",
+      );
+      refreshShared();
+    } finally {
+      setActingId(null);
+    }
+  };
+
+  const handleDelete = async (id: number, firm: string) => {
+    if (!confirm(`Delete ${firm} challenge? This cannot be undone.`)) return;
+    setActingId(id);
+    try {
+      const res = await fetch(`/api/challenges/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        toast.error("Couldn't delete", "Please try again.");
+        return;
+      }
+      toast.success("Challenge deleted");
+      refreshShared();
+    } finally {
+      setActingId(null);
+    }
+  };
 
   const filtered     = challenges.filter((c) =>
     tab === "active" ? c.status === "active" : c.status !== "active"
@@ -453,9 +518,7 @@ export default function ChallengesPage() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="h-6 w-6 animate-spin text-[#555]" />
-        </div>
+        <ChallengeCardsSkeleton count={4} />
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -464,12 +527,14 @@ export default function ChallengesPage() {
               const profitPct = c.profitTarget > 0 ? (c.profitAchieved / c.profitTarget) * 100 : 0;
               const ddPct     = c.maxDrawdownLimit > 0 ? (c.maxDrawdown / c.maxDrawdownLimit) * 100 : 0;
               const isActive  = c.status === "active";
+              const isActing  = actingId === c.id;
               return (
                 <Card
                   key={c.id}
                   className={cn(
-                    "relative overflow-hidden hover:border-white/10 transition-colors cursor-pointer",
-                    !isActive && "opacity-70"
+                    "relative overflow-hidden hover:border-white/10 transition-colors group",
+                    !isActive && "opacity-70",
+                    isActing && "opacity-40 pointer-events-none"
                   )}
                 >
                   <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: color }} />
@@ -484,11 +549,18 @@ export default function ChallengesPage() {
                           <p className="text-[11px]" style={{ color: "var(--text-faint)" }}>{PHASE_LABELS[c.phase] ?? c.phase}</p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <Badge variant={STATUS_BADGE[c.status]?.variant ?? "secondary"}>
-                          {STATUS_BADGE[c.status]?.label ?? c.status}
-                        </Badge>
-                        <p className="text-xs mt-1" style={{ color: "var(--text-faint)" }}>${c.accountSize.toLocaleString()}</p>
+                      <div className="flex items-start gap-2">
+                        <div className="text-right">
+                          <Badge variant={STATUS_BADGE[c.status]?.variant ?? "secondary"}>
+                            {STATUS_BADGE[c.status]?.label ?? c.status}
+                          </Badge>
+                          <p className="text-xs mt-1" style={{ color: "var(--text-faint)" }}>${c.accountSize.toLocaleString()}</p>
+                        </div>
+                        <ChallengeActionsMenu
+                          challenge={c}
+                          onStatus={(s) => handleUpdateStatus(c.id, s)}
+                          onDelete={() => handleDelete(c.id, c.firm)}
+                        />
                       </div>
                     </div>
                   </CardHeader>
@@ -551,5 +623,78 @@ export default function ChallengesPage() {
         </>
       )}
     </div>
+  );
+}
+
+// ── Challenge actions dropdown ──────────────────────────────────────────────
+
+function ChallengeActionsMenu({
+  challenge,
+  onStatus,
+  onDelete,
+}: {
+  challenge: Challenge;
+  onStatus: (newStatus: string) => void;
+  onDelete: () => void;
+}) {
+  const isActive = challenge.status === "active";
+
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        <button
+          aria-label="Challenge actions"
+          className="p-1 rounded-md opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 hover:bg-white/5 transition-opacity"
+          style={{ color: "var(--text-faint)" }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <MoreVertical className="h-3.5 w-3.5" />
+        </button>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          sideOffset={4}
+          align="end"
+          className="z-50 min-w-[160px] rounded-lg shadow-xl py-1 animate-cmd-fade-in"
+          style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+        >
+          {isActive && (
+            <>
+              <MenuItem icon={CheckCircle2} label="Mark as passed" onSelect={() => onStatus("passed")} accent="#22C55E" />
+              <MenuItem icon={XCircle} label="Mark as failed" onSelect={() => onStatus("failed")} accent="#EF4444" />
+              <MenuItem icon={Archive} label="Archive" onSelect={() => onStatus("completed")} />
+            </>
+          )}
+          {!isActive && (
+            <MenuItem icon={CheckCircle2} label="Reactivate" onSelect={() => onStatus("active")} accent="#22C55E" />
+          )}
+          <DropdownMenu.Separator className="my-1 h-px" style={{ background: "var(--border)" }} />
+          <MenuItem icon={Trash2} label="Delete" onSelect={onDelete} accent="#EF4444" />
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
+  );
+}
+
+function MenuItem({
+  icon: Icon,
+  label,
+  onSelect,
+  accent,
+}: {
+  icon: typeof Trash2;
+  label: string;
+  onSelect: () => void;
+  accent?: string;
+}) {
+  return (
+    <DropdownMenu.Item
+      onSelect={onSelect}
+      className="flex items-center gap-2.5 px-3 py-2 text-xs cursor-pointer outline-none hover:bg-white/5"
+      style={{ color: accent ?? "var(--text)" }}
+    >
+      <Icon className="h-3.5 w-3.5" />
+      {label}
+    </DropdownMenu.Item>
   );
 }

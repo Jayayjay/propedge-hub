@@ -1,14 +1,19 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import {
-  Bell, BellOff, CheckCheck, Mail, MessageSquare,
-  AlertTriangle, CheckCircle2, Info, Loader2,
+  BellOff, CheckCheck, Mail, MessageSquare,
+  AlertTriangle, CheckCircle2, Info,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { useQueryClient } from "@tanstack/react-query";
+import { useUserSettings } from "@/hooks/use-app-data";
+import { toast } from "@/lib/toast-store";
 
 type AlertSeverity = "info" | "warning" | "critical";
 type AlertType = "daily_drawdown" | "max_drawdown" | "profit_target" | "breach";
@@ -53,13 +58,13 @@ export default function AlertsPage() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "unread">("all");
-  const [emailEnabled, setEmailEnabled] = useState(true);
-  const [whatsappEnabled, setWhatsappEnabled] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("alerts_whatsapp") === "true";
-    }
-    return false;
-  });
+  const [toggling, setToggling] = useState<"email" | "whatsapp" | null>(null);
+  const queryClient = useQueryClient();
+  const { data: settings } = useUserSettings();
+
+  const emailEnabled    = settings?.emailAlertsEnabled    ?? true;
+  const whatsappEnabled = settings?.whatsappAlertsEnabled ?? false;
+  const hasWhatsappNumber = !!settings?.whatsappNumber;
 
   const fetchAlerts = useCallback(async () => {
     try {
@@ -72,20 +77,47 @@ export default function AlertsPage() {
 
   useEffect(() => { fetchAlerts(); }, [fetchAlerts]);
 
+  const updatePref = async (key: "emailAlertsEnabled" | "whatsappAlertsEnabled", next: boolean) => {
+    setToggling(key === "emailAlertsEnabled" ? "email" : "whatsapp");
+    try {
+      const res = await fetch("/api/user/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [key]: next }),
+      });
+      if (!res.ok) {
+        toast.error("Couldn't save preference");
+        return;
+      }
+      toast.success(
+        `${key === "emailAlertsEnabled" ? "Email" : "WhatsApp"} alerts ${next ? "enabled" : "disabled"}`,
+      );
+      await queryClient.invalidateQueries({ queryKey: ["user-settings"] });
+    } finally {
+      setToggling(null);
+    }
+  };
+
+  const toggleEmail = () => updatePref("emailAlertsEnabled", !emailEnabled);
   const toggleWhatsapp = () => {
-    const next = !whatsappEnabled;
-    setWhatsappEnabled(next);
-    localStorage.setItem("alerts_whatsapp", String(next));
+    if (!hasWhatsappNumber && !whatsappEnabled) {
+      toast.warning("Add a WhatsApp number first", "Go to Settings → Notifications to add one.");
+      return;
+    }
+    updatePref("whatsappAlertsEnabled", !whatsappEnabled);
   };
 
   const markRead = async (id: number) => {
     setAlerts((prev) => prev.map((a) => a.id === id ? { ...a, isRead: true } : a));
     await fetch(`/api/alerts/${id}`, { method: "PATCH" });
+    queryClient.invalidateQueries({ queryKey: ["alerts-count"] });
   };
 
   const markAllRead = async () => {
     setAlerts((prev) => prev.map((a) => ({ ...a, isRead: true })));
-    await fetch("/api/alerts/read-all", { method: "POST" });
+    const res = await fetch("/api/alerts/read-all", { method: "POST" });
+    if (res.ok) toast.success("All alerts marked as read");
+    queryClient.invalidateQueries({ queryKey: ["alerts-count"] });
   };
 
   const displayed = filter === "unread" ? alerts.filter((a) => !a.isRead) : alerts;
@@ -114,9 +146,10 @@ export default function AlertsPage() {
         </CardHeader>
         <CardContent className="flex gap-4 flex-wrap">
           <button
-            onClick={() => setEmailEnabled(!emailEnabled)}
+            onClick={toggleEmail}
+            disabled={toggling === "email"}
             className={cn(
-              "flex items-center gap-2.5 rounded-lg border px-4 py-2.5 text-sm transition-colors",
+              "flex items-center gap-2.5 rounded-lg border px-4 py-2.5 text-sm transition-colors disabled:opacity-60",
               emailEnabled
                 ? "border-[#22C55E]/30 bg-[#22C55E]/5 text-[#22C55E]"
                 : "border-white/8 bg-[#1A1A1A] text-[#666] hover:text-[#888]"
@@ -130,8 +163,9 @@ export default function AlertsPage() {
           </button>
           <button
             onClick={toggleWhatsapp}
+            disabled={toggling === "whatsapp"}
             className={cn(
-              "flex items-center gap-2.5 rounded-lg border px-4 py-2.5 text-sm transition-colors",
+              "flex items-center gap-2.5 rounded-lg border px-4 py-2.5 text-sm transition-colors disabled:opacity-60",
               whatsappEnabled
                 ? "border-[#22C55E]/30 bg-[#22C55E]/5 text-[#22C55E]"
                 : "border-white/8 bg-[#1A1A1A] text-[#666] hover:text-[#888]"
@@ -142,6 +176,11 @@ export default function AlertsPage() {
             <Badge variant={whatsappEnabled ? "default" : "secondary"} className="text-[9px] h-4 px-1">
               {whatsappEnabled ? "ON" : "OFF"}
             </Badge>
+            {!hasWhatsappNumber && (
+              <Link href="/dashboard/settings" className="ml-1 text-[10px] underline opacity-70">
+                add number
+              </Link>
+            )}
           </button>
         </CardContent>
       </Card>
@@ -171,8 +210,10 @@ export default function AlertsPage() {
 
       {/* Alerts list */}
       {loading ? (
-        <div className="flex justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-[#555]" />
+        <div className="space-y-2.5">
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-20 rounded-xl" />
+          ))}
         </div>
       ) : (
         <div className="space-y-2.5">

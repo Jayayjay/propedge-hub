@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { TradesTableSkeleton } from "@/components/prop-tracker/dashboard-skeleton";
 import { cn } from "@/lib/utils";
-import { ArrowUpRight, ArrowDownRight, Loader2 } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { ExportPdfButton } from "@/components/prop-tracker/export-pdf-button";
 
 type Trade = {
@@ -82,14 +84,23 @@ export default function HistoryPage() {
 
       {/* Stats row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {statCards.map((s) => (
-          <Card key={s.label}>
-            <CardContent className="pt-4">
-              <p className="text-xs" style={{ color: "var(--text-faint)" }}>{s.label}</p>
-              <p className="text-xl font-bold mt-1" style={{ color: "var(--text)" }}>{s.value}</p>
-            </CardContent>
-          </Card>
-        ))}
+        {loading
+          ? Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i}>
+                <CardContent className="pt-4 space-y-2">
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-6 w-16" />
+                </CardContent>
+              </Card>
+            ))
+          : statCards.map((s) => (
+              <Card key={s.label}>
+                <CardContent className="pt-4">
+                  <p className="text-xs" style={{ color: "var(--text-faint)" }}>{s.label}</p>
+                  <p className="text-xl font-bold mt-1" style={{ color: "var(--text)" }}>{s.value}</p>
+                </CardContent>
+              </Card>
+            ))}
       </div>
 
       {/* Table */}
@@ -99,9 +110,7 @@ export default function HistoryPage() {
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
-            <div className="flex justify-center py-16">
-              <Loader2 className="h-6 w-6 animate-spin text-[#555]" />
-            </div>
+            <TradesTableSkeleton rows={6} />
           ) : trades.length === 0 ? (
             <div className="text-center py-16" style={{ color: "var(--text-faint)" }}>
               <p className="text-sm">No trades yet. Connect MT5 to start syncing.</p>

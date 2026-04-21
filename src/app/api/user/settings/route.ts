@@ -13,9 +13,11 @@ export async function GET() {
 
   const [user] = await db
     .select({
-      name:           users.name,
-      email:          users.email,
-      whatsappNumber: users.whatsappNumber,
+      name:                  users.name,
+      email:                 users.email,
+      whatsappNumber:        users.whatsappNumber,
+      emailAlertsEnabled:    users.emailAlertsEnabled,
+      whatsappAlertsEnabled: users.whatsappAlertsEnabled,
     })
     .from(users)
     .where(eq(users.id, session.user.id))
@@ -42,8 +44,10 @@ export async function GET() {
 }
 
 const PatchSchema = z.object({
-  name:           z.string().min(1).max(100).optional(),
-  whatsappNumber: z.string().max(20).nullable().optional(),
+  name:                  z.string().min(1).max(100).optional(),
+  whatsappNumber:        z.string().max(20).nullable().optional(),
+  emailAlertsEnabled:    z.boolean().optional(),
+  whatsappAlertsEnabled: z.boolean().optional(),
 });
 
 export async function PATCH(req: NextRequest) {
@@ -60,8 +64,10 @@ export async function PATCH(req: NextRequest) {
   }
 
   const updates: Record<string, unknown> = { updatedAt: new Date() };
-  if (body.name           !== undefined) updates.name           = body.name;
-  if (body.whatsappNumber !== undefined) updates.whatsappNumber = body.whatsappNumber;
+  if (body.name                  !== undefined) updates.name                  = body.name;
+  if (body.whatsappNumber        !== undefined) updates.whatsappNumber        = body.whatsappNumber;
+  if (body.emailAlertsEnabled    !== undefined) updates.emailAlertsEnabled    = body.emailAlertsEnabled;
+  if (body.whatsappAlertsEnabled !== undefined) updates.whatsappAlertsEnabled = body.whatsappAlertsEnabled;
 
   await db.update(users).set(updates).where(eq(users.id, session.user.id));
 

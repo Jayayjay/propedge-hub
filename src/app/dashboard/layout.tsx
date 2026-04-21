@@ -1,6 +1,7 @@
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { MobileOverlay } from "@/components/layout/mobile-overlay";
+import { CommandPalette } from "@/components/command-palette";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -11,6 +12,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <main className="md:ml-60 pt-14 min-h-screen">
         <div className="p-4 md:p-6">{children}</div>
       </main>
+      <CommandPalette />
     </div>
   );
 }

@@ -21,6 +21,8 @@ export const users = pgTable("users", {
   emailVerified: timestamp("email_verified", { mode: "date" }),
   image: text("image"),
   whatsappNumber: varchar("whatsapp_number", { length: 20 }),
+  emailAlertsEnabled: boolean("email_alerts_enabled").default(true).notNull(),
+  whatsappAlertsEnabled: boolean("whatsapp_alerts_enabled").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
