@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
   Plus, TrendingUp, ShieldAlert, Calendar, Target, Loader2, X, ChevronDown,
@@ -397,6 +397,14 @@ function NewChallengeModal({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function ChallengesPage() {
+  return (
+    <Suspense fallback={<ChallengeCardsSkeleton count={4} />}>
+      <ChallengesPageInner />
+    </Suspense>
+  );
+}
+
+function ChallengesPageInner() {
   const [tab, setTab]                 = useState<TabKey>("active");
   const [challenges, setChallenges]   = useState<Challenge[]>([]);
   const [loading, setLoading]         = useState(true);
