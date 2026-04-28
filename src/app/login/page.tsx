@@ -25,6 +25,21 @@ function LoginForm() {
     setLoading(true);
     setError("");
 
+    // In NextAuth v5 beta, custom error messages from authorize() don't surface
+    // through result.error. Pre-check email status so we can show the right message.
+    const statusRes = await fetch("/api/auth/email-status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    const status = await statusRes.json();
+
+    if (status.exists && !status.verified) {
+      setLoading(false);
+      setError("Please verify your email before signing in. Check your inbox for the verification link.");
+      return;
+    }
+
     const result = await signIn("credentials", {
       email,
       password,
@@ -34,11 +49,7 @@ function LoginForm() {
     setLoading(false);
 
     if (result?.error) {
-      if (result.error.includes("EMAIL_NOT_VERIFIED")) {
-        setError("Please verify your email before signing in. Check your inbox for the verification link.");
-      } else {
-        setError("Invalid email or password.");
-      }
+      setError("Invalid email or password.");
     } else {
       router.push("/dashboard");
     }
